@@ -6,6 +6,7 @@ mymodule-objs := skeleton.o	## list of objects needed for that module
 
 # Part executed when called from standard make in module source directory:
 else
+include ../../buildroot_path
 include ../../kernel_settings
 PWD := $(shell pwd)
 
