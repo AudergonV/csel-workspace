@@ -26,5 +26,8 @@ clean:
 install:
 	$(MAKE) -C $(KDIR) M=$(PWD) INSTALL_MOD_PATH=$(MODPATH) modules_install
 
-endif
+uninstall:
+	rm -f $(MODPATH)/lib/modules/$(KVER)/extra/mymodule.ko
+	depmod -a -b $(MODPATH) $(KVER)
 
+endif

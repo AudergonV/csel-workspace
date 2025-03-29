@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+# Daemon application
+#
+case "$1" in
+  start)
+  	/opt/app
+	;;
+  stop)
+  	killall app
+	;;
+  restart|reload)
+  	killall app
+	/opt/app
+	;;
+  *)
+	echo $"Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+echo "Daemon application launched"
+
+exit $?
