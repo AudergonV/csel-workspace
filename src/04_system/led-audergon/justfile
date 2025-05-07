@@ -1,0 +1,14 @@
+build flag="":
+    cmake -S . -B build {{flag}}
+    cmake --build build
+
+clean:
+    rm -rf build
+
+cppcheck:
+   cppcheck . -ibuild 
+
+run:
+    just build
+    ssh -t root@192.168.0.14 '/workspace/src/04_system/led-audergon/build/led'
+

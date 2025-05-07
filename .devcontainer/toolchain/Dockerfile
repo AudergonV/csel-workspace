@@ -26,5 +26,9 @@ RUN apt-get update && \
     u-boot-tools \
     wget
 
+RUN curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin/
+RUN just --completions bash > ~/just.bash
+RUN echo "source ~/just.bash" >> ~/.bashrc
+
 COPY scripts/* /usr/local/bin/
 RUN chmod +x /usr/local/bin/*
