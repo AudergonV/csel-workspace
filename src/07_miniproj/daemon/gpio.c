@@ -1,0 +1,166 @@
+#include "gpio.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+
+#define GPIO_EXPORT_PATH "/sys/class/gpio/export"
+#define GPIO_UNEXPORT_PATH "/sys/class/gpio/unexport"
+#define GPIO_BASE_PATH "/sys/class/gpio/gpio%d"
+
+static const char *gpio_direction_str[] = {
+    [GPIO_DIRECTION_IN] = "in",
+    [GPIO_DIRECTION_OUT] = "out"
+};
+
+static const char *gpio_edge_str[] = {
+    [GPIO_EDGE_NONE] = "none",
+    [GPIO_EDGE_RISING] = "rising",
+    [GPIO_EDGE_FALLING] = "falling",
+    [GPIO_EDGE_BOTH] = "both"
+};
+
+gpio_result_t gpio_export(uint8_t pin)
+{
+    char buf[16];
+    int fd = open(GPIO_EXPORT_PATH, O_WRONLY);
+    if (fd < 0) {
+        perror("Failed to open GPIO export");
+        return GPIO_ERROR;
+    }
+    
+    int len = snprintf(buf, sizeof(buf), "%d", pin);
+    if (write(fd, buf, len) < 0 && errno != EBUSY) {
+        perror("Failed to export GPIO");
+        close(fd);
+        return GPIO_ERROR;
+    }
+    
+    close(fd);
+    return GPIO_SUCCESS;
+}
+
+gpio_result_t gpio_unexport(uint8_t pin)
+{
+    char buf[16];
+    int fd = open(GPIO_UNEXPORT_PATH, O_WRONLY);
+    if (fd < 0) {
+        perror("Failed to open GPIO unexport");
+        return GPIO_ERROR;
+    }
+    
+    int len = snprintf(buf, sizeof(buf), "%d", pin);
+    if (write(fd, buf, len) < 0) {
+        perror("Failed to unexport GPIO");
+        close(fd);
+        return GPIO_ERROR;
+    }
+    
+    close(fd);
+    return GPIO_SUCCESS;
+}
+
+gpio_result_t gpio_set_direction(uint8_t pin, gpio_direction_t direction)
+{
+    char path[64];
+    snprintf(path, sizeof(path), GPIO_BASE_PATH "/direction", pin);
+    
+    int fd = open(path, O_WRONLY);
+    if (fd < 0) {
+        perror("Failed to open GPIO direction");
+        return GPIO_ERROR;
+    }
+    
+    const char *dir_str = gpio_direction_str[direction];
+    if (write(fd, dir_str, strlen(dir_str)) < 0) {
+        perror("Failed to set GPIO direction");
+        close(fd);
+        return GPIO_ERROR;
+    }
+    
+    close(fd);
+    return GPIO_SUCCESS;
+}
+
+gpio_result_t gpio_set_edge(uint8_t pin, gpio_edge_t edge)
+{
+    char path[64];
+    snprintf(path, sizeof(path), GPIO_BASE_PATH "/edge", pin);
+    
+    int fd = open(path, O_WRONLY);
+    if (fd < 0) {
+        perror("Failed to open GPIO edge");
+        return GPIO_ERROR;
+    }
+    
+    const char *edge_str = gpio_edge_str[edge];
+    if (write(fd, edge_str, strlen(edge_str)) < 0) {
+        perror("Failed to set GPIO edge");
+        close(fd);
+        return GPIO_ERROR;
+    }
+    
+    close(fd);
+    return GPIO_SUCCESS;
+}
+
+gpio_result_t gpio_write(uint8_t pin, gpio_value_t value)
+{
+    char path[64];
+    snprintf(path, sizeof(path), GPIO_BASE_PATH "/value", pin);
+    
+    int fd = open(path, O_WRONLY);
+    if (fd < 0) {
+        perror("Failed to open GPIO value for write");
+        return GPIO_ERROR;
+    }
+    
+    char val_char = (value == GPIO_VALUE_HIGH) ? '1' : '0';
+    if (write(fd, &val_char, 1) < 0) {
+        perror("Failed to write GPIO value");
+        close(fd);
+        return GPIO_ERROR;
+    }
+    
+    close(fd);
+    return GPIO_SUCCESS;
+}
+
+gpio_result_t gpio_read(uint8_t pin, gpio_value_t *value)
+{
+    char path[64];
+    snprintf(path, sizeof(path), GPIO_BASE_PATH "/value", pin);
+    
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) {
+        perror("Failed to open GPIO value for read");
+        return GPIO_ERROR;
+    }
+    
+    char val_char;
+    if (read(fd, &val_char, 1) < 0) {
+        perror("Failed to read GPIO value");
+        close(fd);
+        return GPIO_ERROR;
+    }
+    
+    *value = (val_char == '1') ? GPIO_VALUE_HIGH : GPIO_VALUE_LOW;
+    close(fd);
+    return GPIO_SUCCESS;
+}
+
+int gpio_open_fd(uint8_t pin)
+{
+    char path[64];
+    snprintf(path, sizeof(path), GPIO_BASE_PATH "/value", pin);
+    return open(path, O_RDONLY | O_NONBLOCK);
+}
+
+void gpio_close_fd(int fd)
+{
+    if (fd >= 0) {
+        close(fd);
+    }
+}

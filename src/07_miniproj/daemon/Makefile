@@ -1,5 +1,4 @@
-EXEC=oleds
-DTB = mydt.dtb
+EXEC=main
 SRCS=$(wildcard *.c)
 
 target=nano
