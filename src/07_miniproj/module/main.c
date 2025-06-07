@@ -19,6 +19,11 @@
  * - Read the CPU temperature
  * - Control the CPU fan speed based on the temperature
  * - Provide sysfs interface for configuration
+ * 
+ * sysfs interface:
+ *  - /sys/devices/platform/csel/mode: Read-write attribute to set the fan mode ("auto", "manual")
+ *  - /sys/devices/platform/csel/temp: Read-only attribute to get the CPU temperature
+ *  - /sys/devices/platform/csel/blink_freq: Read-write attribute to set the blink frequency of the LED, in Hz
  *
  * Autĥor:  Vincent Audergon
  * Date:    07.06.2025
@@ -29,15 +34,58 @@
 #include <linux/device.h> /* needed for sysfs handling */
 #include <linux/platform_device.h> /* needed for sysfs handling */
 
+#define MIN_BLINK_FREQ (1)      // Hz
+#define MAX_BLINK_FREQ (20)     // Hz
+
+ssize_t mode_show(struct device* dev,
+                                    struct device_attribute* attr, char* buf)
+{
+    const char* mode = "auto"; // Placeholder
+    return sprintf(buf, "%s\n", mode);
+}
+ssize_t mode_store(struct device* dev,
+                                     struct device_attribute* attr,
+                                     const char* buf, size_t count)
+{
+    if (strncmp(buf, "auto", 4) == 0 || strncmp(buf, "manual", 6) == 0) {
+        pr_info("Fan mode set to: %s\n", buf);
+        return count;
+    } else {
+        pr_err("Invalid fan mode: %s\n", buf);
+        return -EINVAL;
+    }
+}
+
 ssize_t temp_show(struct device* dev,
                                     struct device_attribute* attr, char* buf)
 {
-    // Simulate reading CPU temperature
-    int temperature = 45; // Placeholder value
+    int temperature = 10;
     return sprintf(buf, "%d\n", temperature);
 }
 
-DEVICE_ATTR_RO(cpu_temperature_celsius);
+ssize_t blink_freq_show(struct device* dev,
+                                         struct device_attribute* attr, char* buf)
+{
+    int blink_freq = 2; // Placeholder
+    return sprintf(buf, "%d\n", blink_freq);
+}
+
+ssize_t blink_freq_store(struct device* dev,
+                                          struct device_attribute* attr,
+                                          const char* buf, size_t count)
+{
+    int freq = simple_strtol(buf, NULL, 10);
+    if (freq < MIN_BLINK_FREQ || freq > MAX_BLINK_FREQ) {
+        pr_err("Invalid blink frequency: %d\n", freq);
+        return -EINVAL;
+    }
+    pr_info("Blink frequency set to: %d Hz\n", freq);
+    return count;
+}
+
+DEVICE_ATTR_RO(temp);
+DEVICE_ATTR_RW(mode);
+DEVICE_ATTR_RW(blink_freq);
 
 static void sysfs_dev_release(struct device* dev) {}
 static struct platform_device sysfs_device = {
@@ -55,7 +103,19 @@ static int __init mod_init(void)
     }
     if (status == 0) {
         status = device_create_file(&sysfs_device.dev, &dev_attr_temp);
-        pr_info("CSEL sysfs file created\n");
+        pr_info("CSEL sysfs file created (temp)\n");
+    }
+    if (status == 0) {
+        status = device_create_file(&sysfs_device.dev, &dev_attr_mode);
+        pr_info("CSEL sysfs file created (mode)\n");
+    }
+    if (status == 0) {
+        status = device_create_file(&sysfs_device.dev, &dev_attr_blink_freq);
+        pr_info("CSEL sysfs file created (blink_freq)\n");
+    }
+    if (status < 0) {
+        pr_err("Failed to register CSEL platform device or create sysfs files: %d\n", status);
+        return status;
     }
     pr_info("CSEL module loaded\n");
     return 0;
@@ -64,6 +124,8 @@ static int __init mod_init(void)
 static void __exit mod_exit(void)
 {
     device_remove_file(&sysfs_device.dev, &dev_attr_temp);
+    device_remove_file(&sysfs_device.dev, &dev_attr_mode);
+    device_remove_file(&sysfs_device.dev, &dev_attr_blink_freq);
     platform_device_unregister(&sysfs_device);
     pr_info("CSEL module unloaded\n");
 }
