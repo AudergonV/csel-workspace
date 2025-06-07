@@ -25,7 +25,7 @@
  *  - /sys/devices/platform/csel/temp: Read-only attribute to get the CPU temperature
  *  - /sys/devices/platform/csel/blink_freq: Read-write attribute to set the blink frequency of the LED, in Hz
  *
- * Autĥor:  Vincent Audergon
+ * Author:  Vincent Audergon
  * Date:    07.06.2025
  */
 
@@ -33,6 +33,8 @@
 #include <linux/module.h> /* needed by all modules */
 #include <linux/device.h> /* needed for sysfs handling */
 #include <linux/platform_device.h> /* needed for sysfs handling */
+
+#include "cpu_temperature.h" /* Include temperature sensor header */
 
 #define MIN_BLINK_FREQ (1)      // Hz
 #define MAX_BLINK_FREQ (20)     // Hz
@@ -59,8 +61,7 @@ ssize_t mode_store(struct device* dev,
 ssize_t temp_show(struct device* dev,
                                     struct device_attribute* attr, char* buf)
 {
-    int temperature = 10;
-    return sprintf(buf, "%d\n", temperature);
+    return sprintf(buf, "%d\n", cpu_temperature_get());
 }
 
 ssize_t blink_freq_show(struct device* dev,
@@ -117,12 +118,14 @@ static int __init mod_init(void)
         pr_err("Failed to register CSEL platform device or create sysfs files: %d\n", status);
         return status;
     }
+    cpu_temperature_init();
     pr_info("CSEL module loaded\n");
     return 0;
 }
 
 static void __exit mod_exit(void)
 {
+    cpu_temperature_deinit();
     device_remove_file(&sysfs_device.dev, &dev_attr_temp);
     device_remove_file(&sysfs_device.dev, &dev_attr_mode);
     device_remove_file(&sysfs_device.dev, &dev_attr_blink_freq);
