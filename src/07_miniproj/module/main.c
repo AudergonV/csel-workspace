@@ -27,15 +27,44 @@
 #include <linux/init.h>   /* needed for macros */
 #include <linux/module.h> /* needed by all modules */
 #include <linux/device.h> /* needed for sysfs handling */
+#include <linux/platform_device.h> /* needed for sysfs handling */
+
+ssize_t temp_show(struct device* dev,
+                                    struct device_attribute* attr, char* buf)
+{
+    // Simulate reading CPU temperature
+    int temperature = 45; // Placeholder value
+    return sprintf(buf, "%d\n", temperature);
+}
+
+DEVICE_ATTR_RO(cpu_temperature_celsius);
+
+static void sysfs_dev_release(struct device* dev) {}
+static struct platform_device sysfs_device = {
+    .name        = "csel",
+    .id          = -1,
+    .dev.release = sysfs_dev_release,
+};
 
 static int __init mod_init(void)
 {
+    int status = 0;
+    if (status == 0) {
+        status = platform_device_register(&sysfs_device);
+        pr_info("CSEL platform device registered\n");
+    }
+    if (status == 0) {
+        status = device_create_file(&sysfs_device.dev, &dev_attr_temp);
+        pr_info("CSEL sysfs file created\n");
+    }
     pr_info("CSEL module loaded\n");
     return 0;
 }
 
 static void __exit mod_exit(void)
 {
+    device_remove_file(&sysfs_device.dev, &dev_attr_temp);
+    platform_device_unregister(&sysfs_device);
     pr_info("CSEL module unloaded\n");
 }
 
