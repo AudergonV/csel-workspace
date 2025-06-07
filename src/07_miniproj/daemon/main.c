@@ -1,31 +1,133 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <signal.h>
 #include <errno.h>
 #include <unistd.h>
-#include "gpio.h"
+#include <fcntl.h>
 #include "button.h"
 
-#define LED_PIN 10
 #define K1_PIN 0
 #define K2_PIN 2
 #define K3_PIN 3
 
 static volatile int running = 1;
-static int led_state = 0;
+
+#define SYSFS_MODE "/sys/class/csel/mode"
+#define SYSFS_TEMP "/sys/class/csel/temp"
+#define SYSFS_FREQ "/sys/class/csel/blink_freq"
+
+static int read_file(const char *path, char *buf, size_t len)
+{
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) {
+        perror("open");
+        return -1;
+    }
+    ssize_t r = read(fd, buf, len - 1);
+    if (r < 0) {
+        perror("read");
+        close(fd);
+        return -1;
+    }
+    buf[r] = '\0';
+    close(fd);
+    char *nl = strchr(buf, '\n');
+    if (nl) *nl = '\0';
+    return 0;
+}
+
+static int write_file(const char *path, const char *buf)
+{
+    int fd = open(path, O_WRONLY);
+    if (fd < 0) {
+        perror("open");
+        return -1;
+    }
+    if (write(fd, buf, strlen(buf)) < 0) {
+        perror("write");
+        close(fd);
+        return -1;
+    }
+    close(fd);
+    return 0;
+}
+
+static int get_mode(char *mode, size_t len)
+{
+    return read_file(SYSFS_MODE, mode, len);
+}
+
+static int set_mode(const char *mode)
+{
+    return write_file(SYSFS_MODE, mode);
+}
+
+static int get_freq(void)
+{
+    char buf[16];
+    if (read_file(SYSFS_FREQ, buf, sizeof(buf)) < 0)
+        return -1;
+    return atoi(buf);
+}
+
+static int set_freq(int freq)
+{
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%d", freq);
+    return write_file(SYSFS_FREQ, buf);
+}
+
+static void toggle_mode(void)
+{
+    char mode[16];
+    if (get_mode(mode, sizeof(mode)) < 0)
+        return;
+    if (strcmp(mode, "auto") == 0)
+        set_mode("manual");
+    else
+        set_mode("auto");
+}
 
 static void signal_handler(int sig)
 {
-    (void)sig;
+    switch (sig) {
+        case SIGINT:
+            printf("\nReceived SIGINT (Ctrl+C), shutting down...\n");
+            break;
+        case SIGTERM:
+            printf("\nReceived SIGTERM, shutting down...\n");
+            break;
+        default:
+            printf("\nReceived signal %d, shutting down gracefully...\n", sig);
+            return;
+    }
     running = 0;
 }
 
 static void button_pressed(const button_t *button, void *user_data)
 {
-    (void)user_data;
-    printf("%s pressed\n", button->name);
-    led_state = !led_state;
-    gpio_write(LED_PIN, led_state ? GPIO_VALUE_HIGH : GPIO_VALUE_LOW);
+    (void)user_data; // Unused parameter
+
+    if (strcmp(button->name, "K1") == 0) {
+        int freq = get_freq();
+        if (freq > 0 && freq < 20)
+            freq++;
+        else if (freq >= 20)
+            freq = 20;
+        if (freq > 0)
+            set_freq(freq);
+    } else if (strcmp(button->name, "K2") == 0) {
+        int freq = get_freq();
+        if (freq > 1)
+            freq--;
+        else
+            freq = 1;
+        if (freq > 0)
+            set_freq(freq);
+    } else if (strcmp(button->name, "K3") == 0) {
+        toggle_mode();
+    }
 }
 
 int main(void)
@@ -48,15 +150,7 @@ int main(void)
         return EXIT_FAILURE;
     }
     
-    if (gpio_export(LED_PIN) != GPIO_SUCCESS ||
-        gpio_set_direction(LED_PIN, GPIO_DIRECTION_OUT) != GPIO_SUCCESS ||
-        gpio_write(LED_PIN, GPIO_VALUE_LOW) != GPIO_SUCCESS) {
-        fprintf(stderr, "Failed to initialize LED\n");
-        button_cleanup(&button_ctx);
-        return EXIT_FAILURE;
-    }
-    
-    printf("Button daemon-like started (PID: %d)\n", getpid());
+    printf("Button daemon started (PID: %d)\n", getpid());
     printf("Press Ctrl+C to stop\n");
     
     while (running) {
@@ -74,9 +168,7 @@ int main(void)
         }
     }
     
-    printf("\nShutting down daemon-like application...\n");
-    gpio_write(LED_PIN, GPIO_VALUE_LOW);
-    gpio_unexport(LED_PIN);
+    printf("\nShutting down daemon...\n");
     button_cleanup(&button_ctx);
     
     return EXIT_SUCCESS;
