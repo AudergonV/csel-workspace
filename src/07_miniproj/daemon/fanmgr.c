@@ -33,7 +33,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <syslog.h>
-#include "button.h"
+#include "gpio/button.h"
 #include "oled/oled.h"
 
 /* GPIO pin assignments for buttons */

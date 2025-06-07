@@ -1,11 +1,11 @@
 EXEC=fanmgr
-SRCS=$(wildcard *.c) $(wildcard oled/*.c)
+SRCS=$(wildcard *.c) $(wildcard gpio/*.c) $(wildcard oled/*.c)
 
 target=nano
 
 TOOLCHAIN_PATH=/buildroot/output/host/usr/bin/
 TOOLCHAIN=$(TOOLCHAIN_PATH)aarch64-linux-
-CFLAGS=-Wall -Wextra -g -c -O0 -MD -std=gnu11 -Ioled
+CFLAGS=-Wall -Wextra -g -c -O0 -MD -std=gnu11 -Igpio -Ioled
 CFLAGS+=-mcpu=cortex-a53 -funwind-tables
 ##CFLAGS+=-O2 -fno-omit-frame-pointer
 OBJDIR=.obj/nano
