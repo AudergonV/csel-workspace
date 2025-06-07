@@ -24,17 +24,38 @@
 
 #include "cpu_temperature.h"
 
-void cpu_temperature_init(void)
+#define MILLI_CELIUS_TO_CELSIUS (1000)
+#define THERMAL_ZONE_CPU "cpu-thermal"
+
+struct thermal_zone_device* tz;
+
+int cpu_temperature_init(void)
 {
-    // TODO
+    tz = thermal_zone_get_zone_by_name(THERMAL_ZONE_CPU);
+    if (IS_ERR(tz)) {
+        return PTR_ERR(tz);
+    }
+    pr_info("CPU temperature sensor initialized successfully\n");
+    return 0;
 }
 
 void cpu_temperature_deinit(void)
 {
-   // TODO
+    if (tz) {
+        thermal_zone_device_unregister(tz);
+        pr_info("CPU temperature sensor deinitialized successfully\n");
+    } else {
+        pr_warn("CPU temperature sensor was not initialized\n");
+    }
 }
 
-int cpu_temperature_get(void)
+int cpu_temperature_get(int *temp)
 {
-    return 25;
+    int ret = thermal_zone_get_temp(tz, temp);
+    if (ret < 0) {
+        pr_err("Failed to get CPU temperature: %d\n", ret);
+        return ret;
+    }
+    *temp /= MILLI_CELIUS_TO_CELSIUS;
+    return 0;
 }

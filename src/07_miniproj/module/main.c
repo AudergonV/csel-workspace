@@ -61,7 +61,13 @@ ssize_t mode_store(struct device* dev,
 ssize_t temp_show(struct device* dev,
                                     struct device_attribute* attr, char* buf)
 {
-    return sprintf(buf, "%d\n", cpu_temperature_get());
+    int temp;
+    int ret = cpu_temperature_get(&temp);
+    if (ret < 0) {
+        pr_err("Failed to get CPU temperature: %d\n", ret);
+        return ret;
+    }
+    return sprintf(buf, "%d\n", temp);
 }
 
 ssize_t blink_freq_show(struct device* dev,
@@ -118,7 +124,11 @@ static int __init mod_init(void)
         pr_err("Failed to register CSEL platform device or create sysfs files: %d\n", status);
         return status;
     }
-    cpu_temperature_init();
+    status = cpu_temperature_init();
+    if (status < 0) {
+        pr_err("Failed to initialize CPU temperature sensor: %d\n", status);
+        return status;
+    }
     pr_info("CSEL module loaded\n");
     return 0;
 }
