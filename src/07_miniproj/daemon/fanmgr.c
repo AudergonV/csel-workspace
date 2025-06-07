@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <syslog.h>
 #include "button.h"
+#include "oled/oled.h"
 
 #define K1_PIN 0
 #define K2_PIN 2
@@ -18,6 +19,7 @@ static volatile int running = 1;
 #define SYSFS_MODE "/sys/devices/platform/csel/mode"
 #define SYSFS_TEMP "/sys/devices/platform/csel/temp"
 #define SYSFS_FREQ "/sys/devices/platform/csel/blink_freq"
+
 
 static int read_file(const char *path, char *buf, size_t len)
 {
@@ -80,6 +82,11 @@ static int set_freq(int freq)
     return write_file(SYSFS_FREQ, buf);
 }
 
+static int get_temp(char *temp, size_t len)
+{
+    return read_file(SYSFS_TEMP, temp, len);
+}
+
 static void toggle_mode(void)
 {
     char mode[16];
@@ -97,6 +104,26 @@ static void toggle_mode(void)
         syslog(LOG_ERR, "Failed to set mode to %s", (strcmp(mode, "auto") == 0) ? "manual" : "auto");
     } else {
         syslog(LOG_INFO, "Mode toggled to %s", (strcmp(mode, "auto") == 0) ? "manual" : "auto");
+    }
+}
+
+static void update_oled_display(void)
+{
+    char mode[16], temp[16], freq_str[16];
+    int freq;
+    
+    if (get_mode(mode, sizeof(mode)) == 0) {
+        oled_set_mode(mode);
+    }
+    
+    if (get_temp(temp, sizeof(temp)) == 0) {
+        oled_set_temp(temp);
+    }
+    
+    freq = get_freq();
+    if (freq > 0) {
+        snprintf(freq_str, sizeof(freq_str), "%d", freq);
+        oled_set_freq(freq_str);
     }
 }
 
@@ -231,6 +258,9 @@ int main(int argc, char *argv[])
     openlog("fanmgrd", LOG_PID, LOG_DAEMON);
     syslog(LOG_INFO, "Fanmgr daemon started (PID: %d)", getpid());
     
+    oled_init();
+    update_oled_display();
+    
     signal(SIGHUP, signal_handler);  //  1 - hangup
     signal(SIGINT, signal_handler);  //  2 - terminal interrupt
     signal(SIGQUIT, signal_handler); //  3 - terminal quit
@@ -263,6 +293,13 @@ int main(int argc, char *argv[])
         
         if (ret > 0) {
             button_handle_events(&button_ctx, button_pressed, NULL);
+            update_oled_display();
+        }
+        
+        static int display_update_counter = 0;
+        if (++display_update_counter >= 5) {
+            update_oled_display();
+            display_update_counter = 0;
         }
     }
 
