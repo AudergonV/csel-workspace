@@ -15,9 +15,9 @@
 
 static volatile int running = 1;
 
-#define SYSFS_MODE "/sys/class/csel/mode"
-#define SYSFS_TEMP "/sys/class/csel/temp"
-#define SYSFS_FREQ "/sys/class/csel/blink_freq"
+#define SYSFS_MODE "/sys/devices/platform/csel/mode"
+#define SYSFS_TEMP "/sys/devices/platform/csel/temp"
+#define SYSFS_FREQ "/sys/devices/platform/csel/blink_freq"
 
 static int read_file(const char *path, char *buf, size_t len)
 {
@@ -114,26 +114,35 @@ static void button_pressed(const button_t *button, void *user_data)
     if (strcmp(button->name, "K1") == 0) {
         syslog(LOG_INFO, "Button K1 pressed");
         int freq = get_freq();
-        if (freq > 0 && freq < 20)
+        if (freq > 0 && freq < 20) {
             freq++;
-        else if (freq >= 20)
+        } else if (freq >= 20) {
             freq = 20;
-        else
+        } else {
             syslog(LOG_ERR, "Failed to get frequency");
+            return;
+        }
         if (freq > 0)
             ret = set_freq(freq);
+        if (ret < 0) {
+            syslog(LOG_ERR, "Failed to set frequency to %d", freq);
+        } else {
+            syslog(LOG_INFO, "Frequency set to %d", freq);
+        }
     } else if (strcmp(button->name, "K2") == 0) {
         syslog(LOG_INFO, "Button K2 pressed");
         int freq = get_freq();
-        if (freq > 1)
+        if (freq > 1) {
             freq--;
-        else if (freq == 1)
+        } else if (freq == 1) {
             syslog(LOG_INFO, "Frequency is already at minimum");
-        else
+        } else {
             syslog(LOG_ERR, "Failed to get frequency");
+            return;
+        }
         if (freq > 0)
             ret = set_freq(freq);
-        if (ret < 0 && freq > 0) {
+        if (ret < 0) {
             syslog(LOG_ERR, "Failed to set frequency to %d", freq);
         } else {
             syslog(LOG_INFO, "Frequency set to %d", freq);

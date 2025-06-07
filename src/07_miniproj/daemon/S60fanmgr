@@ -21,10 +21,20 @@ start() {
         fi
     fi
     
-    $DAEMON &
-    echo $! > $PIDFILE
-    echo "OK"
-    return 0
+    # Start daemon (it will daemonize itself)
+    $DAEMON
+    
+    # Wait a moment and find the daemon PID
+    sleep 1
+    PID=$(pgrep -f $DAEMON)
+    if [ -n "$PID" ]; then
+        echo $PID > $PIDFILE
+        echo "OK"
+        return 0
+    else
+        echo "FAILED"
+        return 1
+    fi
 }
 
 stop() {
