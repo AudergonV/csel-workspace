@@ -1,4 +1,4 @@
-EXEC=main
+EXEC=fanmgr
 SRCS=$(wildcard *.c)
 
 target=nano
