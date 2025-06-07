@@ -1,3 +1,29 @@
+/**
+ * Copyright 2025 University of Applied Sciences Western Switzerland / Fribourg
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Project: HEIA-FR / HES-SO MSE - MA-CSEL1 Mini Project
+ *
+ * Abstract: FanMgr - Fan management daemon
+ * Daemon that monitors button inputs and controls system parameters 
+ * through sysfs interface. Provides OLED display feedback
+ * showing temperature, frequency, and operating mode status.
+ *
+ * Author:  Bastien Veuthey
+ * Date:    07.06.2025
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,17 +36,27 @@
 #include "button.h"
 #include "oled/oled.h"
 
-#define K1_PIN 0
-#define K2_PIN 2
-#define K3_PIN 3
+/* GPIO pin assignments for buttons */
+#define K1_PIN 0  /* Button K1: Increase frequency */
+#define K2_PIN 2  /* Button K2: Decrease frequency */
+#define K3_PIN 3  /* Button K3: Toggle mode */
 
-static volatile int running = 1;
+/* Global daemon state */
+static volatile int running = 1;  /* Main loop control flag */
 
-#define SYSFS_MODE "/sys/devices/platform/csel/mode"
-#define SYSFS_TEMP "/sys/devices/platform/csel/temp"
-#define SYSFS_FREQ "/sys/devices/platform/csel/blink_freq"
+/* Sysfs interface paths for fan control */
+#define SYSFS_MODE "/sys/devices/platform/csel/mode"       /* auto/manual mode */
+#define SYSFS_TEMP "/sys/devices/platform/csel/temp"       /* temperature reading */
+#define SYSFS_FREQ "/sys/devices/platform/csel/blink_freq" /* PWM/LED frequency */
 
 
+/**
+ * Read a value from a sysfs file
+ * @param path Path to the sysfs file
+ * @param buf Buffer to store the read value
+ * @param len Buffer size
+ * @return 0 on success, -1 on error
+ */
 static int read_file(const char *path, char *buf, size_t len)
 {
     int fd = open(path, O_RDONLY);
@@ -41,6 +77,12 @@ static int read_file(const char *path, char *buf, size_t len)
     return 0;
 }
 
+/**
+ * Write a value to a sysfs file
+ * @param path Path to the sysfs file
+ * @param buf Value to write
+ * @return 0 on success, -1 on error
+ */
 static int write_file(const char *path, const char *buf)
 {
     int fd = open(path, O_WRONLY);
@@ -57,16 +99,31 @@ static int write_file(const char *path, const char *buf)
     return 0;
 }
 
+/**
+ * Get current operating mode from sysfs
+ * @param mode Buffer to store mode string ("auto" or "manual")
+ * @param len Buffer size
+ * @return 0 on success, -1 on error
+ */
 static int get_mode(char *mode, size_t len)
 {
     return read_file(SYSFS_MODE, mode, len);
 }
 
+/**
+ * Set operating mode via sysfs
+ * @param mode Mode to set ("auto" or "manual")
+ * @return 0 on success, -1 on error
+ */
 static int set_mode(const char *mode)
 {
     return write_file(SYSFS_MODE, mode);
 }
 
+/**
+ * Get current PWM/LED frequency from sysfs
+ * @return Frequency value on success, -1 on error
+ */
 static int get_freq(void)
 {
     char buf[16];
@@ -75,6 +132,11 @@ static int get_freq(void)
     return atoi(buf);
 }
 
+/**
+ * Set PWM/LED frequency via sysfs
+ * @param freq Frequency value to set (1-20 Hz)
+ * @return 0 on success, -1 on error
+ */
 static int set_freq(int freq)
 {
     char buf[16];
@@ -82,11 +144,21 @@ static int set_freq(int freq)
     return write_file(SYSFS_FREQ, buf);
 }
 
+/**
+ * Get current temperature reading from sysfs
+ * @param temp Buffer to store temperature string
+ * @param len Buffer size
+ * @return 0 on success, -1 on error
+ */
 static int get_temp(char *temp, size_t len)
 {
     return read_file(SYSFS_TEMP, temp, len);
 }
 
+/**
+ * Toggle between automatic and manual operating modes
+ * Switches from "auto" to "manual" or vice versa
+ */
 static void toggle_mode(void)
 {
     char mode[16];
@@ -107,6 +179,10 @@ static void toggle_mode(void)
     }
 }
 
+/**
+ * Update OLED display with current system metrics
+ * Reads temperature, frequency, and mode from sysfs and updates display
+ */
 static void update_oled_display(void)
 {
     char mode[16], temp[16], freq_str[16];
@@ -127,12 +203,24 @@ static void update_oled_display(void)
     }
 }
 
+/**
+ * Signal handler for graceful daemon shutdown
+ * @param sig Signal number received
+ */
 static void signal_handler(int sig)
 {
     syslog(LOG_INFO, "Received signal %d, shutting down gracefully...", sig);
     running = 0;
 }
 
+/**
+ * Button press event handler
+ * K1: Increase frequency (1-20 Hz)
+ * K2: Decrease frequency (1-20 Hz)
+ * K3: Toggle operating mode (auto/manual)
+ * @param button Button structure containing button information
+ * @param user_data User data (unused)
+ */
 static void button_pressed(const button_t *button, void *user_data)
 {
     (void)user_data;
@@ -180,6 +268,14 @@ static void button_pressed(const button_t *button, void *user_data)
     }
 }
 
+/**
+ * Daemonize the process using double-fork technique
+ * - Forks twice to ensure process becomes a proper daemon
+ * - Detaches from controlling terminal
+ * - Changes working directory to root
+ * - Redirects standard streams to /dev/null
+ * @return 0 on success, -1 on error
+ */
 static int daemonize(void)
 {
     pid_t pid;
@@ -229,6 +325,10 @@ static int daemonize(void)
     return 0;
 }
 
+/**
+ * Print program usage information
+ * @param prog Program name
+ */
 static void print_usage(const char *prog)
 {
     printf("Usage: %s [options]\n", prog);
@@ -236,6 +336,17 @@ static void print_usage(const char *prog)
     printf("  -h, --help          Show this help message\n");
 }
 
+/**
+ * Main daemon entry point
+ * - Parses command line arguments
+ * - Daemonizes the process
+ * - Initializes button handling and OLED display
+ * - Enters main event loop monitoring button presses
+ * - Updates display periodically
+ * @param argc Argument count
+ * @param argv Argument vector
+ * @return EXIT_SUCCESS on normal termination, EXIT_FAILURE on error
+ */
 int main(int argc, char *argv[])
 {
     button_ctx_t button_ctx;

@@ -1,3 +1,29 @@
+/**
+ * Copyright 2025 University of Applied Sciences Western Switzerland / Fribourg
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Project: HEIA-FR / HES-SO MSE - MA-CSEL1 Mini Project
+ *
+ * Abstract: SSD1306 OLED display driver
+ * SSD1306 OLED display driver providing low-level I2C communication
+ * and display control functions. Handles initialization, character
+ * rendering, and display positioning for 128x64 OLED displays.
+ *
+ * Author:  Bastien Veuthey
+ * Date:    07.06.2025
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/i2c-dev.h>
@@ -10,17 +36,20 @@
 
 #include "ssd1306.h"
 
-// this code is mainly based on Bakebit software: https://github.com/friendlyarm/BakeBit
+/* This code is mainly based on Bakebit software: https://github.com/friendlyarm/BakeBit */
 
+/* Utility macro for array size calculation */
 #define ARRAY_OF(x) (sizeof(x)/sizeof(x[0]))
 
-#define I2C_BUS                 "/dev/i2c-0"
-#define OLED_ADDR               0x3c	
-#define OLED_COMMAND_MODE       0x00
-#define OLED_DATA_MODE          0x40 
-#define OLED_DISPLAY_OFF_CMD    0xae 
-#define OLED_DISPLAY_ON_CMD     0xaf
+/* I2C and OLED configuration constants */
+#define I2C_BUS                 "/dev/i2c-0"  /* I2C device file */
+#define OLED_ADDR               0x3c          /* SSD1306 I2C address */
+#define OLED_COMMAND_MODE       0x00          /* Command mode prefix */
+#define OLED_DATA_MODE          0x40          /* Data mode prefix */
+#define OLED_DISPLAY_OFF_CMD    0xae          /* Display off command */
+#define OLED_DISPLAY_ON_CMD     0xaf          /* Display on command */
 
+/* 8x8 pixel font table for ASCII characters 32-127 */
 static const uint8_t font[][8] = {
 {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
 {0x00,0x00,0x5F,0x00,0x00,0x00,0x00,0x00},
@@ -121,112 +150,157 @@ static const uint8_t font[][8] = {
 };
 
 
+/* SSD1306 initialization command sequence */
 static const uint8_t init_commands[] = {
-    0xAE,    //display off
-    0x00,    //set lower column address
-    0x10,    //set higher column address
-    0x40,    //set display start line
-    0xB0,    //set page address
-    0x81,
-    0xCF,    //0~255????????????????
-    0xA1,    //set segment remap
-    0xA6,    //normal / reverse
-    0xA8,    //multiplex ratio
-    0x3F,    //duty = 1/64
-    0xC8,    //Com scan direction
-    0xD3,    //set display offset
-    0x00,
-    0xD5,    //set osc division
-    0x80,
-    0xD9,    //set pre-charge period
-    0xF1,
-    0xDA,    //set COM pins
-    0x12,
-    0xDB,    //set vcomh
-    0x40,
-    0x8D,    //set charge pump enable
-    0x14,
-    0xAF,    //display ON
+    0xAE,    /* Display off */
+    0x00,    /* Set lower column address */
+    0x10,    /* Set higher column address */
+    0x40,    /* Set display start line */
+    0xB0,    /* Set page address */
+    0x81,    /* Set contrast control */
+    0xCF,    /* Contrast value (0-255) */
+    0xA1,    /* Set segment remap */
+    0xA6,    /* Normal display (not inverted) */
+    0xA8,    /* Set multiplex ratio */
+    0x3F,    /* Duty cycle 1/64 */
+    0xC8,    /* COM output scan direction */
+    0xD3,    /* Set display offset */
+    0x00,    /* No offset */
+    0xD5,    /* Set display clock divide ratio */
+    0x80,    /* Default ratio */
+    0xD9,    /* Set pre-charge period */
+    0xF1,    /* Pre-charge value */
+    0xDA,    /* Set COM pins hardware configuration */
+    0x12,    /* Alternative COM pin config */
+    0xDB,    /* Set VCOMH deselect level */
+    0x40,    /* VCOMH level */
+    0x8D,    /* Set charge pump setting */
+    0x14,    /* Enable charge pump */
+    0xAF,    /* Display on */
 
 };
 
+/* Global I2C file descriptor */
 static int fd;
 
+/**
+ * Send a command byte to the SSD1306 display
+ * Commands control display settings and operations
+ * @param cmd Command byte to send
+ */
 static void send_command(uint8_t cmd)
 {
     uint8_t buf[2]= {
-        [0] = OLED_COMMAND_MODE,
-        [1] = cmd,
+        [0] = OLED_COMMAND_MODE,  /* Command mode prefix */
+        [1] = cmd,                /* Command byte */
     };
     if (write(fd, buf, sizeof(buf)) != sizeof(buf)) {
         printf ("error while sending command\n");
     }
 }
 
+/**
+ * Send a data byte to the SSD1306 display
+ * Data bytes represent pixel information for the display
+ * @param byte Data byte to send
+ */
 void send_data(uint8_t byte) 
 {
     uint8_t buf[2] = {
-        [0] = OLED_DATA_MODE,
-        [1] = byte,
+        [0] = OLED_DATA_MODE,     /* Data mode prefix */
+        [1] = byte,               /* Data byte */
     };
     if (write(fd, buf, sizeof(buf)) != sizeof(buf)) {
         printf ("error while sending data\n");
     }
 }
 
+/**
+ * Set cursor position on the OLED display
+ * Positions are in character units (8 pixels wide)
+ * @param column Column position (0-15 for 128 pixel width)
+ * @param row Row position (0-7 for 64 pixel height)
+ */
 void ssd1306_set_position (uint32_t column, uint32_t row)
 {
-    send_command(0xb0 + row);                   //set page address
-    send_command(0x00 + (8*column & 0x0f));     //set column lower address
-    send_command(0x10 + ((8*column>>4)&0x0f));  //set column higher address
+    send_command(0xb0 + row);                   /* Set page address */
+    send_command(0x00 + (8*column & 0x0f));     /* Set column lower address */
+    send_command(0x10 + ((8*column>>4)&0x0f));  /* Set column higher address */
 }
 
+/**
+ * Display a single character at current cursor position
+ * Uses the built-in 8x8 font table for character rendering
+ * @param c Character to display (printable ASCII 32-127)
+ */
 void ssd1306_putc(char c) 
 {
-	if ((c<32) || (c>127))      // Ignore non-printable ASCII characters
+	/* Handle non-printable characters */
+	if ((c<32) || (c>127))      /* Ignore non-printable ASCII characters */
 		c=' ';
-    c-=32;
+    c-=32;                      /* Convert to font table index */
 
+	/* Send 8 bytes of font data for this character */
 	for (int i=0; i<8; i++) {
 		uint8_t data=font[(int)c][i];
 		send_data(data);
     }
 }
 
+/**
+ * Display a string starting at current cursor position
+ * Renders each character sequentially using ssd1306_putc
+ * @param str Null-terminated string to display
+ */
 void ssd1306_puts(const char* str) 
 {
+    /* Display each character in the string */
     while (*str != 0)
         ssd1306_putc(*str++);
 }
 
+/**
+ * Clear the entire display
+ * Fills all display memory with spaces (blank characters)
+ */
 void ssd1306_clear_display()
 {
-	send_command(OLED_DISPLAY_OFF_CMD);//   display off
+	send_command(OLED_DISPLAY_OFF_CMD);   /* Turn display off */
+	/* Clear all 8 rows, 16 columns */
 	for (int j=0; j<8; j++) {
 		ssd1306_set_position(0,j); 
-		for (int i=0; i<16; i++)  //clear all columns
+		for (int i=0; i<16; i++)          /* Clear all columns */
 			ssd1306_putc(' ');
     }
-	send_command(OLED_DISPLAY_ON_CMD);    //display on
-	ssd1306_set_position(0,0);
+	send_command(OLED_DISPLAY_ON_CMD);    /* Turn display on */
+	ssd1306_set_position(0,0);           /* Reset cursor to top-left */
 }
 
+/**
+ * Initialize the SSD1306 OLED display
+ * Opens I2C connection, configures display, and clears screen
+ * @return 0 on success, -1 on error
+ */
 int ssd1306_init()
 {
+	/* Open I2C device */
 	fd = open(I2C_BUS, O_RDWR);
 	if (fd < 0) {
 		printf("ERROR: unable to open i2c bus interface (%s)\n", I2C_BUS);
 		return -1;
 	}
+	/* Set I2C slave address */
 	if (ioctl(fd, I2C_SLAVE, OLED_ADDR) < 0) { 
 		printf("ERROR: unable to access OLED as slave\n");
 		return -1;
 	}
 
+    /* Send initialization command sequence */
     for (unsigned i=0; i<ARRAY_OF(init_commands); i++) {
         send_command (init_commands[i]);
     }
 
+    /* Clear display to start with blank screen */
     ssd1306_clear_display();
 
 	return 0;
