@@ -12,12 +12,10 @@ The project consists of three main components:
 
 ## Architecture
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   fanctl (CLI)  │───▶│  fanmgr (daemon)│───▶│  csel (module)  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-      FIFO IPC           GPIO/OLED/sysfs         LED control
-```
+![Architecture Diagram](doc/architecture.drawio.png)
+
+> The architecture diagram illustrates the interaction between the kernel module, daemon, CLI tool, and hardware components.
+> Elements marked with an asterisk (*) indicate components that are developed as part of this project.
 
 ## Components
 
