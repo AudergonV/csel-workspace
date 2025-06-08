@@ -38,16 +38,6 @@ int cpu_temperature_init(void)
     return 0;
 }
 
-void cpu_temperature_deinit(void)
-{
-    if (tz) {
-        thermal_zone_device_unregister(tz);
-        pr_info("CPU temperature sensor deinitialized successfully\n");
-    } else {
-        pr_warn("CPU temperature sensor was not initialized\n");
-    }
-}
-
 int cpu_temperature_get(int *temp)
 {
     int ret = thermal_zone_get_temp(tz, temp);

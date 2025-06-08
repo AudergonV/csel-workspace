@@ -92,7 +92,6 @@ void fan_control_deinit(void) {
         fan_thread = NULL;
     }
     status_led_deinit();
-    cpu_temperature_deinit();
 }
 
 void fan_control_set_mode(const enum fan_mode mode) {

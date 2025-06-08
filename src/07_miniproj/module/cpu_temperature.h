@@ -32,11 +32,6 @@
 int cpu_temperature_init(void);
 
 /**
- * @brief Deinitializes the CPU temperature sensor.
- */
-void cpu_temperature_deinit(void);
-
-/**
  * @brief Gets the current CPU temperature.
  * @param temp Pointer to an integer where the temperature will be stored in Celsius.
  * @return 0 on success, negative error code on failure.

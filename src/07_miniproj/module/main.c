@@ -122,23 +122,21 @@ static struct platform_device sysfs_device = {
 
 static int __init mod_init(void)
 {
-    int status = platform_device_register(&sysfs_device);
+    int status = fan_control_init();
+    if (status < 0) {
+        pr_err("failed to initialize fan control: %d\n", status);
+        return status;
+    }
+    status = platform_device_register(&sysfs_device);
     if (status < 0) {
         pr_err("failed to register platform device: %d\n", status);
         return status;
     }
-    status = fan_control_init();
-    if (status == 0) {
-        status = device_create_file(&sysfs_device.dev, &dev_attr_temp);
-    }
-    if (status == 0) {
-        status = device_create_file(&sysfs_device.dev, &dev_attr_mode);
-    }
-    if (status == 0) {
-        status = device_create_file(&sysfs_device.dev, &dev_attr_blink_freq);
-    }
+    status = device_create_file(&sysfs_device.dev, &dev_attr_temp);
+    if (status == 0) status = device_create_file(&sysfs_device.dev, &dev_attr_mode);
+    if (status == 0) status = device_create_file(&sysfs_device.dev, &dev_attr_blink_freq);
     if (status < 0) {
-        pr_err("failed to create sysfs files or initialize fan control: %d\n", status);
+        pr_err("failed to create sysfs files: %d\n", status);
         platform_device_unregister(&sysfs_device);
         fan_control_deinit();
         return status;
