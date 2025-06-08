@@ -35,27 +35,42 @@
 #include <linux/platform_device.h> /* needed for sysfs handling */
 
 #include "cpu_temperature.h" /* Include temperature sensor header */
+#include "fan_control.h" /* Include fan control header */
 
 #define MIN_BLINK_FREQ (1)      // Hz
 #define MAX_BLINK_FREQ (20)     // Hz
+#define MODE_AUTO "auto"
+#define MODE_AUTO_LEN (4)
+#define MODE_MANUAL "manual"
+#define MODE_MANUAL_LEN (6)
 
 ssize_t mode_show(struct device* dev,
                                     struct device_attribute* attr, char* buf)
 {
-    const char* mode = "auto"; // Placeholder
-    return sprintf(buf, "%s\n", mode);
+    const enum fan_mode mode = fan_control_get_mode();
+    if (mode == FAN_MODE_AUTO) {
+        return sprintf(buf, "%s\n", MODE_AUTO);
+    } else if (mode == FAN_MODE_MANUAL) {
+        return sprintf(buf, "%s\n", MODE_MANUAL);
+    }
+    return sprintf(buf, "unknown\n");
 }
 ssize_t mode_store(struct device* dev,
                                      struct device_attribute* attr,
                                      const char* buf, size_t count)
 {
-    if (strncmp(buf, "auto", 4) == 0 || strncmp(buf, "manual", 6) == 0) {
+    if (strncmp(buf, MODE_AUTO, MODE_AUTO_LEN) == 0) {
+        fan_control_set_mode(FAN_MODE_AUTO);
         pr_info("Fan mode set to: %s\n", buf);
         return count;
-    } else {
-        pr_err("Invalid fan mode: %s\n", buf);
-        return -EINVAL;
     }
+    else if (strncmp(buf, MODE_MANUAL, MODE_MANUAL_LEN) == 0) {
+        fan_control_set_mode(FAN_MODE_MANUAL);
+        pr_info("Fan mode set to: %s\n", buf);
+        return count;
+    }
+    pr_err("Invalid fan mode: %s\n", buf);
+    return -EINVAL;
 }
 
 ssize_t temp_show(struct device* dev,
@@ -73,8 +88,7 @@ ssize_t temp_show(struct device* dev,
 ssize_t blink_freq_show(struct device* dev,
                                          struct device_attribute* attr, char* buf)
 {
-    int blink_freq = 2; // Placeholder
-    return sprintf(buf, "%d\n", blink_freq);
+    return sprintf(buf, "%d\n", fan_control_get_blink_freq());
 }
 
 ssize_t blink_freq_store(struct device* dev,
@@ -86,6 +100,7 @@ ssize_t blink_freq_store(struct device* dev,
         pr_err("Invalid blink frequency: %d\n", freq);
         return -EINVAL;
     }
+    fan_control_set_blink_freq(freq);
     pr_info("Blink frequency set to: %d Hz\n", freq);
     return count;
 }
@@ -129,12 +144,19 @@ static int __init mod_init(void)
         pr_err("Failed to initialize CPU temperature sensor: %d\n", status);
         return status;
     }
+    status = fan_control_init();
+    if (status < 0) {
+        pr_err("Failed to initialize fan control: %d\n", status);
+        cpu_temperature_deinit();
+        return status;
+    }
     pr_info("CSEL module loaded\n");
     return 0;
 }
 
 static void __exit mod_exit(void)
 {
+    fan_control_deinit();
     cpu_temperature_deinit();
     device_remove_file(&sysfs_device.dev, &dev_attr_temp);
     device_remove_file(&sysfs_device.dev, &dev_attr_mode);

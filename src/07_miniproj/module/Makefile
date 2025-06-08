@@ -2,7 +2,7 @@
 ifneq ($(KERNELRELEASE),)
 obj-m += csel.o		## name of the generated module
 
-csel-objs := main.o cpu_temperature.o
+csel-objs := main.o cpu_temperature.o status_led.o fan_control.o
 # Part executed when called from standard make in module source directory:
 else
 include ../../buildroot_path
