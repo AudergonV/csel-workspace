@@ -93,14 +93,17 @@ fanmgr
 
 Control fan frequency:
 ```bash
-fanctl freq_up      # Set frequency to next higher value
-fanctl freq_down    # Set frequency to next lower value
+fanctl freq 15     # Set LED blink frequency to 15 Hz
 ```
 
 Switch modes:
 ```bash
-fanctl toggle_mode  # Toggle between auto and manual mode
+fanctl mode auto   # Set to automatic mode
+fanctl mode manual # Set to manual mode
 ```
+
+Note that in automatic mode, the frequency is controlled by the CPU temperature and cannot be set manually. 
+In manual mode, you can set the frequency directly.
 
 ### Hardware Controls
 

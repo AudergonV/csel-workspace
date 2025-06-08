@@ -71,15 +71,15 @@ static int send_command(const char *command)
  */
 static void print_usage(const char *prog)
 {
-    printf("Usage: %s <command>\n", prog);
+    printf("Usage: %s <command> [value]\n", prog);
     printf("\nCommands:\n");
-    printf("  freq_up      Increase fan frequency (1-20 Hz)\n");
-    printf("  freq_down    Decrease fan frequency (1-20 Hz)\n");
-    printf("  toggle_mode  Toggle between auto and manual mode\n");
-    printf("  help         Show this help message\n");
+    printf("  freq <value>  Set fan frequency (1-20 Hz)\n");
+    printf("  mode <value>  Set operating mode (auto or manual)\n");
+    printf("  help          Show this help message\n");
     printf("\nExamples:\n");
-    printf("  %s freq_up\n", prog);
-    printf("  %s toggle_mode\n", prog);
+    printf("  %s freq 15\n", prog);
+    printf("  %s mode auto\n", prog);
+    printf("  %s mode manual\n", prog);
 }
 
 /**
@@ -90,7 +90,7 @@ static void print_usage(const char *prog)
  */
 int main(int argc, char *argv[])
 {
-    if (argc != 2) {
+    if (argc < 2 || argc > 3) {
         print_usage(argv[0]);
         return EXIT_FAILURE;
     }
@@ -103,12 +103,46 @@ int main(int argc, char *argv[])
         return EXIT_SUCCESS;
     }
     
-    if (strcmp(command, "freq_up") == 0 || 
-        strcmp(command, "freq_down") == 0 || 
-        strcmp(command, "toggle_mode") == 0) {
+    if (strcmp(command, "freq") == 0) {
+        if (argc != 3) {
+            fprintf(stderr, "Error: freq command requires a frequency value (1-20 Hz)\n");
+            print_usage(argv[0]);
+            return EXIT_FAILURE;
+        }
         
-        if (send_command(command) == 0) {
-            printf("Command '%s' sent successfully\n", command);
+        int freq = atoi(argv[2]);
+        if (freq < 1 || freq > 20) {
+            fprintf(stderr, "Error: frequency must be between 1 and 20 Hz\n");
+            return EXIT_FAILURE;
+        }
+        
+        char freq_cmd[32];
+        snprintf(freq_cmd, sizeof(freq_cmd), "set_freq %d", freq);
+        
+        if (send_command(freq_cmd) == 0) {
+            printf("Frequency set to %d Hz\n", freq);
+            return EXIT_SUCCESS;
+        } else {
+            return EXIT_FAILURE;
+        }
+    } else if (strcmp(command, "mode") == 0) {
+        if (argc != 3) {
+            fprintf(stderr, "Error: mode command requires a mode value (auto or manual)\n");
+            print_usage(argv[0]);
+            return EXIT_FAILURE;
+        }
+        
+        const char *mode = argv[2];
+        if (strcmp(mode, "auto") != 0 && strcmp(mode, "manual") != 0) {
+            fprintf(stderr, "Error: mode must be 'auto' or 'manual'\n");
+            return EXIT_FAILURE;
+        }
+        
+        char mode_cmd[32];
+        snprintf(mode_cmd, sizeof(mode_cmd), "set_mode %s", mode);
+        
+        if (send_command(mode_cmd) == 0) {
+            printf("Mode set to %s\n", mode);
             return EXIT_SUCCESS;
         } else {
             return EXIT_FAILURE;

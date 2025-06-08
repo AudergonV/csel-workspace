@@ -248,7 +248,34 @@ static void process_fifo_command(const char *cmd)
     
     syslog(LOG_INFO, "Received command: %s", trimmed);
     
-    if (strcmp(trimmed, "freq_up") == 0) {
+    if (strncmp(trimmed, "set_freq ", 9) == 0) {
+        char mode[16];
+        if (get_mode(mode, sizeof(mode)) == 0 && strcmp(mode, "auto") == 0) {
+            syslog(LOG_WARNING, "Cannot set frequency in auto mode - switch to manual mode first");
+        } else {
+            int freq = atoi(trimmed + 9);
+            if (freq >= 1 && freq <= 20) {
+                if (set_freq(freq) == 0) {
+                    syslog(LOG_INFO, "Frequency set to %d", freq);
+                } else {
+                    syslog(LOG_ERR, "Failed to set frequency to %d", freq);
+                }
+            } else {
+                syslog(LOG_WARNING, "Invalid frequency value: %d (must be 1-20)", freq);
+            }
+        }
+    } else if (strncmp(trimmed, "set_mode ", 9) == 0) {
+        const char *mode = trimmed + 9;
+        if (strcmp(mode, "auto") == 0 || strcmp(mode, "manual") == 0) {
+            if (set_mode(mode) == 0) {
+                syslog(LOG_INFO, "Mode set to %s", mode);
+            } else {
+                syslog(LOG_ERR, "Failed to set mode to %s", mode);
+            }
+        } else {
+            syslog(LOG_WARNING, "Invalid mode value: %s (must be 'auto' or 'manual')", mode);
+        }
+    } else if (strcmp(trimmed, "freq_up") == 0) {
         int freq = get_freq();
         if (freq > 0 && freq < 20) {
             if (set_freq(freq + 1) == 0) {

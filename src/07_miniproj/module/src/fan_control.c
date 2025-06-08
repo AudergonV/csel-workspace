@@ -99,6 +99,21 @@ void fan_control_set_mode(const enum fan_mode mode) {
         return;
     }
     _mode = mode;
+    
+    // If switching to auto mode, immediately recalculate frequency based on current temperature
+    if (mode == FAN_MODE_AUTO) {
+        int temp;
+        if (cpu_temperature_get(&temp) == 0) {
+            int i;
+            for (i = 0; i < _num_thresholds; i++) {
+                if (temp < _temperature_thresholds[i]) {
+                    _actual_blink_frequency = _blink_frequencies[i];
+                    break;
+                }
+            }
+            status_led_set_blink_freq(_actual_blink_frequency);
+        }
+    }
 }
 
 void fan_control_set_blink_freq(unsigned int freq) {
