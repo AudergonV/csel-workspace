@@ -80,10 +80,10 @@ void button_set_user_data(button_ctx_t *ctx, void *user_data)
 
 /**
  * Add a button to the monitoring context
- * Exports GPIO pin, configures it for input with both edge detection,
- * and adds it to the button context for polling
+ * Exports GPIO pin, configures it for input with both edge detection
  * @param ctx Button context to add button to
  * @param pin GPIO pin number for the button
+ * @param id Unique identifier for the button
  * @param name Human-readable name for the button (e.g., "K1", "K2")
  * @return 0 on success, -1 on error
  */

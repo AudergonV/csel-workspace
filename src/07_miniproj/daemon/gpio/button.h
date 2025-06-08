@@ -75,6 +75,7 @@ void button_set_user_data(button_ctx_t *ctx, void *user_data);
  * @brief Add a button to the monitoring context
  * @param ctx Button context to add button to
  * @param pin GPIO pin number for the button
+ * @param id Unique identifier for the button
  * @param name Human-readable name for the button
  * @return 0 on success, -1 on error
  */
