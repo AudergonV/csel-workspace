@@ -30,24 +30,25 @@
 
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#include <linux/atomic.h>
 
 struct task_struct *fan_thread = NULL;
-unsigned int _blink_frequency_manual = CSEL_DEFAULT_BLINK_FREQ_MANUAL_HZ;
-unsigned int _actual_blink_frequency = CSEL_DEFAULT_BLINK_FREQ_MANUAL_HZ;
-enum fan_mode _mode = CSEL_DEFAULT_MODE;
+static atomic_t blink_frequency_manual = ATOMIC_INIT(CSEL_DEFAULT_BLINK_FREQ_MANUAL_HZ);
+static atomic_t actual_blink_frequency = ATOMIC_INIT(CSEL_DEFAULT_BLINK_FREQ_MANUAL_HZ);
+static atomic_t mode_atomic = ATOMIC_INIT(CSEL_DEFAULT_MODE);
 
-static const unsigned int _temperature_thresholds[] = CSEL_TEMPERATURE_THRESHOLDS_C;
-static const unsigned int _blink_frequencies[] = CSEL_BLINK_FREQUENCIES_HZ;
-static const unsigned int _num_thresholds = sizeof(_temperature_thresholds) / sizeof(_temperature_thresholds[0]);
+static const unsigned int temperature_thresholds[] = CSEL_TEMPERATURE_THRESHOLDS_C;
+static const unsigned int blink_frequencies[] = CSEL_BLINK_FREQUENCIES_HZ;
+static const unsigned int num_thresholds = sizeof(temperature_thresholds) / sizeof(temperature_thresholds[0]);
 
 static int calculate_blink_frequency(int temperature) {
     int i;
-    for (i = 0; i < _num_thresholds; i++) {
-        if (temperature < _temperature_thresholds[i]) {
-            return _blink_frequencies[i];
+    for (i = 0; i < num_thresholds; i++) {
+        if (temperature < temperature_thresholds[i]) {
+            return blink_frequencies[i];
         }
     }
-    return _blink_frequencies[_num_thresholds - 1];
+    return blink_frequencies[num_thresholds - 1];
 }
 
 static int fan_control_thread(void *data) {
@@ -55,15 +56,18 @@ static int fan_control_thread(void *data) {
     while (!kthread_should_stop()) {
         if (cpu_temperature_get(&temp) == 0) {
             // Adjust blink frequency based on temperature
-            if (_mode == FAN_MODE_AUTO) {
-                _actual_blink_frequency = calculate_blink_frequency(temp);
-            } else if (_mode == FAN_MODE_MANUAL) {
-                _actual_blink_frequency = _blink_frequency_manual;
+            int mode = atomic_read(&mode_atomic);
+            if (mode == FAN_MODE_AUTO) {
+                int freq = calculate_blink_frequency(temp);
+                atomic_set(&actual_blink_frequency, freq);
+            } else if (mode == FAN_MODE_MANUAL) {
+                int manual = atomic_read(&blink_frequency_manual);
+                atomic_set(&actual_blink_frequency, manual);
             }
         } else {
             pr_err("failed to read CPU temperature\n");
         }
-        status_led_set_blink_freq(_actual_blink_frequency);
+        status_led_set_blink_freq(atomic_read(&actual_blink_frequency));
         msleep(CSEL_TEMPERATURE_POLLING_PERIOD_MS);
     }
     return 0;
@@ -102,25 +106,26 @@ void fan_control_set_mode(const enum fan_mode mode) {
         pr_err("invalid fan mode: %d\n", mode);
         return;
     }
-    _mode = mode;
-    // If switching to auto mode, immediately recalculate frequency based on current temperature
+    atomic_set(&mode_atomic, mode);
+
     if (mode == FAN_MODE_AUTO) {
-        int temp;
+        int temp = 0;
         if (cpu_temperature_get(&temp) == 0) {
-            _actual_blink_frequency = calculate_blink_frequency(temp);
-            status_led_set_blink_freq(_actual_blink_frequency);
+            int freq = calculate_blink_frequency(temp);
+            atomic_set(&actual_blink_frequency, freq);
+            status_led_set_blink_freq(freq);
         }
     }
 }
 
 void fan_control_set_blink_freq(unsigned int freq) {
-    _blink_frequency_manual = freq;
+    atomic_set(&blink_frequency_manual, freq);
 }
 
 int fan_control_get_blink_freq(void) {
-    return _actual_blink_frequency;
+    return atomic_read(&actual_blink_frequency);
 }
 
 const enum fan_mode fan_control_get_mode(void) {
-    return _mode;
+    return (enum fan_mode)atomic_read(&mode_atomic);
 }
