@@ -22,11 +22,7 @@
  */
 #ifndef _FAN_CONTROL_H__
 #define _FAN_CONTROL_H__
-
-enum fan_mode {
-    FAN_MODE_AUTO,
-    FAN_MODE_MANUAL
-};
+#include "config.h"
 
 /**
  * @brief Initializes the fan control module.
@@ -57,7 +53,7 @@ void fan_control_set_mode(const enum fan_mode mode);
  * If the mode is set to auto, this will not have any effect, until the mode is changed to manual.
  * @note This function is thread-safe and can be called from any context.
  */
-void fan_control_set_blink_freq(int freq);
+void fan_control_set_blink_freq(unsigned int freq);
 
 /**
  * @brief Gets the current blink frequency of the status LED.

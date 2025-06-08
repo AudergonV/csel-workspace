@@ -23,6 +23,7 @@
 
 #ifndef _CPU_TEMPERATURE_H__
 #define _CPU_TEMPERATURE_H__
+#include "config.h"
 
 /**
  * @brief Initializes the CPU temperature sensor.

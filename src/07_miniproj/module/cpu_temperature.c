@@ -25,13 +25,12 @@
 #include "cpu_temperature.h"
 
 #define MILLI_CELIUS_TO_CELSIUS (1000)
-#define THERMAL_ZONE_CPU "cpu-thermal"
 
 struct thermal_zone_device* tz;
 
 int cpu_temperature_init(void)
 {
-    tz = thermal_zone_get_zone_by_name(THERMAL_ZONE_CPU);
+    tz = thermal_zone_get_zone_by_name(CSEL_THERMAL_ZONE_CPU);
     if (IS_ERR(tz)) {
         return PTR_ERR(tz);
     }

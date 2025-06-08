@@ -26,49 +26,60 @@
 #include "fan_control.h"
 #include "status_led.h"
 #include "cpu_temperature.h"
+#include "config.h"
 
 #include <linux/kthread.h>
 #include <linux/delay.h>
 
 struct task_struct *fan_thread = NULL;
-int _blink_frequency_manual = 1;
-int _actual_blink_frequency = 1;
-enum fan_mode _mode = FAN_MODE_AUTO;
+unsigned int _blink_frequency_manual = CSEL_DEFAULT_BLINK_FREQ_MANUAL_HZ;
+unsigned int _actual_blink_frequency = CSEL_DEFAULT_BLINK_FREQ_MANUAL_HZ;
+enum fan_mode _mode = CSEL_DEFAULT_MODE;
+
+static const unsigned int _temperature_thresholds[] = CSEL_TEMPERATURE_THRESHOLDS_C;
+static const unsigned int _blink_frequencies[] = CSEL_BLINK_FREQUENCIES_HZ;
+static const unsigned int _num_thresholds = sizeof(_temperature_thresholds) / sizeof(_temperature_thresholds[0]);
 
 static int fan_control_thread(void *data) {
     int temp;
     while (!kthread_should_stop()) {
-        // Read CPU temperature
         if (cpu_temperature_get(&temp) == 0) {
-            pr_info("Current CPU temperature: %d°C\n", temp);
             // Adjust blink frequency based on temperature
             if (_mode == FAN_MODE_AUTO) {
-                if (temp < 35) {
-                    _actual_blink_frequency = 2; // Below 35°C
-                } else if (temp < 40) {
-                    _actual_blink_frequency = 5; // Between 35°C and 40°C
-                } else if (temp < 45) {
-                    _actual_blink_frequency = 10; // Between 40°C and 45°C
-                } else {
-                    _actual_blink_frequency = 20; // Above 45°C
+                int i;
+                for (i = 0; i < _num_thresholds - 1; i++) {
+                    if (temp < _temperature_thresholds[i]) {
+                        _actual_blink_frequency = _blink_frequencies[i];
+                        break;
+                    }
                 }
             } else if (_mode == FAN_MODE_MANUAL) {
                 _actual_blink_frequency = _blink_frequency_manual;
             }
         } else {
-            pr_err("Failed to read CPU temperature\n");
+            pr_err("failed to read CPU temperature\n");
         }
         status_led_set_blink_freq(_actual_blink_frequency);
-        msleep(1000); // Sleep for 1 second
+        msleep(CSEL_TEMPERATURE_POLLING_PERIOD_MS);
     }
     return 0;
 }
 
 int fan_control_init(void) {
-    status_led_init();
+    int status = cpu_temperature_init();
+    if (status < 0) {
+        pr_err("failed to initialize CPU temperature sensor: %d\n", status);
+        return status;
+    }
+    status = status_led_init();
+    if (status < 0) {
+        pr_err("failed to initialize status LED: %d\n", status);
+        cpu_temperature_deinit();
+        return status;
+    }
     fan_thread = kthread_run(fan_control_thread, NULL, "fan_control_thread");
     if (IS_ERR(fan_thread)) {
-        pr_err("Failed to create fan control thread\n");
+        pr_err("failed to create fan control thread\n");
         fan_thread = NULL;
         return PTR_ERR(fan_thread);
     }
@@ -76,23 +87,23 @@ int fan_control_init(void) {
 }
 
 void fan_control_deinit(void) {
-    status_led_deinit();
     if (fan_thread) {
         kthread_stop(fan_thread);
         fan_thread = NULL;
     }
+    status_led_deinit();
+    cpu_temperature_deinit();
 }
 
 void fan_control_set_mode(const enum fan_mode mode) {
     if (mode != FAN_MODE_AUTO && mode != FAN_MODE_MANUAL) {
-        pr_err("Invalid fan mode: %d\n", mode);
+        pr_err("invalid fan mode: %d\n", mode);
         return;
     }
     _mode = mode;
-    pr_info("Fan mode set to: %s\n", mode == FAN_MODE_AUTO ? "AUTO" : "MANUAL");
 }
 
-void fan_control_set_blink_freq(int freq) {
+void fan_control_set_blink_freq(unsigned int freq) {
     _blink_frequency_manual = freq;
 }
 

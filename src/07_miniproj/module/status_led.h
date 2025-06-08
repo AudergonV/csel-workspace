@@ -22,11 +22,12 @@
  */
 #ifndef _STATUS_LED_H__
 #define _STATUS_LED_H__
+#include "config.h"
 
-void status_led_init(void);
+int status_led_init(void);
 void status_led_deinit(void);
 void status_led_on(void);
 void status_led_off(void);
-void status_led_set_blink_freq(int freq);
+void status_led_set_blink_freq(unsigned int freq);
 
 #endif // _STATUS_LED_H__
