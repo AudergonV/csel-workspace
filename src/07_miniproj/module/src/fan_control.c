@@ -40,19 +40,23 @@ static const unsigned int _temperature_thresholds[] = CSEL_TEMPERATURE_THRESHOLD
 static const unsigned int _blink_frequencies[] = CSEL_BLINK_FREQUENCIES_HZ;
 static const unsigned int _num_thresholds = sizeof(_temperature_thresholds) / sizeof(_temperature_thresholds[0]);
 
+static int calculate_blink_frequency(int temperature) {
+    int i;
+    for (i = 0; i < _num_thresholds; i++) {
+        if (temperature < _temperature_thresholds[i]) {
+            return _blink_frequencies[i];
+        }
+    }
+    return _blink_frequencies[_num_thresholds - 1];
+}
+
 static int fan_control_thread(void *data) {
     int temp;
     while (!kthread_should_stop()) {
         if (cpu_temperature_get(&temp) == 0) {
             // Adjust blink frequency based on temperature
             if (_mode == FAN_MODE_AUTO) {
-                int i;
-                for (i = 0; i < _num_thresholds - 1; i++) {
-                    if (temp < _temperature_thresholds[i]) {
-                        _actual_blink_frequency = _blink_frequencies[i];
-                        break;
-                    }
-                }
+                _actual_blink_frequency = calculate_blink_frequency(temp);
             } else if (_mode == FAN_MODE_MANUAL) {
                 _actual_blink_frequency = _blink_frequency_manual;
             }
@@ -99,18 +103,11 @@ void fan_control_set_mode(const enum fan_mode mode) {
         return;
     }
     _mode = mode;
-    
     // If switching to auto mode, immediately recalculate frequency based on current temperature
     if (mode == FAN_MODE_AUTO) {
         int temp;
         if (cpu_temperature_get(&temp) == 0) {
-            int i;
-            for (i = 0; i < _num_thresholds; i++) {
-                if (temp < _temperature_thresholds[i]) {
-                    _actual_blink_frequency = _blink_frequencies[i];
-                    break;
-                }
-            }
+            _actual_blink_frequency = calculate_blink_frequency(temp);
             status_led_set_blink_freq(_actual_blink_frequency);
         }
     }

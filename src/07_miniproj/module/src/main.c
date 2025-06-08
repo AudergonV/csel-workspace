@@ -74,7 +74,6 @@ ssize_t temp_show(struct device* dev,
     int ret = cpu_temperature_get(&temp);
     if (ret < 0) {
         pr_err("failed to get CPU temperature: %d\n", ret);
-        return ret;
     }
     return sprintf(buf, "%d\n", temp);
 }

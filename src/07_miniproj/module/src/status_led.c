@@ -9,17 +9,17 @@
 #define HALF_SECOND_MS 500U
 
 struct task_struct *led_thread = NULL;
-unsigned int _blink_frequency = 0;
+unsigned int _blink_frequency = CSEL_DEFAULT_BLINK_FREQ_MANUAL_HZ;
 
 static int led_control_thread(void *data) {
     while (!kthread_should_stop()) {
         if (_blink_frequency > 0) {
-            status_led_on();
+            gpio_set_value(CSEL_STATUS_LED_GPIO, LED_ON);
             msleep(HALF_SECOND_MS / _blink_frequency); // On for half the period
-            status_led_off();
+            gpio_set_value(CSEL_STATUS_LED_GPIO, LED_OFF);
             msleep(HALF_SECOND_MS / _blink_frequency); // Off for half the period
         } else {
-            status_led_off();
+            gpio_set_value(CSEL_STATUS_LED_GPIO, LED_OFF);
         }
     }
     return 0;
@@ -55,14 +55,6 @@ void status_led_deinit(void) {
     }
     gpio_free(CSEL_STATUS_LED_GPIO);
     pr_info("status LED deinitialized\n");
-}
-
-void status_led_on(void) {
-    gpio_set_value(CSEL_STATUS_LED_GPIO, LED_ON);
-}
-
-void status_led_off(void) {
-    gpio_set_value(CSEL_STATUS_LED_GPIO, LED_OFF);
 }
 
 void status_led_set_blink_freq(unsigned int freq) {

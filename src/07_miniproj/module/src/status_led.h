@@ -24,10 +24,19 @@
 #define _STATUS_LED_H__
 #include "config.h"
 
+/**
+ * @brief Initializes the status LED.
+ * @return 0 on success, negative error code on failure.
+ */
 int status_led_init(void);
+/**
+ * @brief Deinitializes the status LED.
+ */
 void status_led_deinit(void);
-void status_led_on(void);
-void status_led_off(void);
+/**
+ * @brief Sets the blink frequency of the status LED.
+ * @param freq Frequency in Hz. 0 means no blinking.
+ */
 void status_led_set_blink_freq(unsigned int freq);
 
 #endif // _STATUS_LED_H__
