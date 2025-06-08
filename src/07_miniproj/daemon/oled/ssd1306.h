@@ -42,4 +42,10 @@ void ssd1306_puts(const char* str);
  */
 void ssd1306_clear_display();
 
+/**
+ * @brief Deinitialize the SSD1306 OLED display
+ * Turns off the display and releases resources.
+ */
+void ssd1306_cleanup();
+
 #endif

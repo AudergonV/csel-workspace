@@ -98,6 +98,15 @@ void oled_init()
 }
 
 /**
+ * Deinitialize OLED display
+ * Turns off the display and releases resources
+ */
+void oled_cleanup()
+{
+    ssd1306_cleanup();
+}
+
+/**
  * Clear the entire OLED display
  * Erases all content from the display
  */

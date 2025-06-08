@@ -306,5 +306,13 @@ int ssd1306_init()
 	return 0;
 }
 
-
-
+/**
+ * Deinitialize the SSD1306 OLED display
+ * Turns off the display and closes I2C connection
+ */
+void ssd1306_cleanup()
+{
+    send_command(OLED_DISPLAY_OFF_CMD);  /* Turn display off */
+    close(fd);                            /* Close I2C device */
+    fd = -1;                              /* Reset file descriptor */
+}

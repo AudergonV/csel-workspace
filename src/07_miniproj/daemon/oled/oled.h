@@ -15,6 +15,12 @@
 void oled_init();
 
 /**
+ * @brief Deinitialize OLED display
+ * Turns off the display and releases resources.
+ */
+void oled_cleanup();
+
+/**
  * @brief Clear the entire OLED display
  */
 void oled_clear();

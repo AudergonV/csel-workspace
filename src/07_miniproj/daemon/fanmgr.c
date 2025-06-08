@@ -548,6 +548,7 @@ int main(int argc, char *argv[])
     }
     button_cleanup(&button_ctx);
     led_cleanup();
+    oled_cleanup();
 
     return EXIT_SUCCESS;
 }
