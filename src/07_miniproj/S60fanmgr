@@ -5,6 +5,7 @@
 NAME=fanmgr
 DAEMON=/usr/bin/$NAME
 PIDFILE=/var/run/$NAME.pid
+MODULE=csel
 
 # Exit if the package is not installed
 [ -x "$DAEMON" ] || exit 0
@@ -18,6 +19,16 @@ start() {
             return 1
         else
             rm -f $PIDFILE
+        fi
+    fi
+
+    # Load the kernel module if necessary
+    if ! lsmod | grep -q $MODULE; then
+        echo "Loading kernel module $MODULE..."
+        modprobe $MODULE
+        if [ $? -ne 0 ]; then
+            echo "Failed to load kernel module $MODULE"
+            return 1
         fi
     fi
     
@@ -60,6 +71,15 @@ stop() {
     else
         echo "not running"
     fi
+    # Unload the kernel module if it was loaded by this script
+    if lsmod | grep -q $MODULE; then
+        echo "Unloading kernel module $MODULE..."
+        rmmod $MODULE
+        if [ $? -ne 0 ]; then
+            echo "Failed to unload kernel module $MODULE"
+            return 1
+        fi
+    fi
     return 0
 }
 
@@ -70,6 +90,12 @@ restart() {
 }
 
 status() {
+    # kernel module status
+    if lsmod | grep -q $MODULE; then
+        echo "Kernel module $MODULE is loaded"
+    else
+        echo "Kernel module $MODULE is not loaded"
+    fi
     if [ -f $PIDFILE ]; then
         PID=$(cat $PIDFILE)
         if kill -0 $PID 2>/dev/null; then

@@ -32,4 +32,8 @@ install:
 	        INSTALL_MOD_PATH=$(MODPATH) \
 	        modules_install
 
+uninstall:
+	rm -f $(MODPATH)/lib/modules/$(KVER)/extra/csel.ko
+	depmod -a -b $(MODPATH) $(KVER)
+
 endif

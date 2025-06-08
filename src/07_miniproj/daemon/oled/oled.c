@@ -82,7 +82,7 @@ void oled_init()
 {
     if (ssd1306_init() == 0) {
         ssd1306_set_position(0, 0);
-        ssd1306_puts("CSEL1a - SP.25");
+        ssd1306_puts(" CSEL1 - SP.25");
         ssd1306_set_position(0, 1);
         ssd1306_puts("  Fan Manager");
         ssd1306_set_position(0, 2);
@@ -113,7 +113,11 @@ void oled_clear()
  */
 void oled_set_temp(const char *temp)
 {
-    oled_format_line(POSITION_TEMP_ROW, "Temp: ", temp, temp_str);
+    char temp_with_unit[16];
+    if (temp != NULL) {
+        snprintf(temp_with_unit, sizeof(temp_with_unit), "%s'C", temp);
+        oled_format_line(POSITION_TEMP_ROW, "Temp: ", temp_with_unit, temp_str);
+    }
 }
 
 /**

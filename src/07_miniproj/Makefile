@@ -18,10 +18,12 @@ install:
 	$(MAKE) -C daemon install
 	$(MAKE) -C cli install
 	$(MAKE) -C module install
+	install -m 755 S60fanmgr /rootfs/etc/init.d/
 
 uninstall:
 	$(MAKE) -C daemon uninstall
 	$(MAKE) -C cli uninstall
 	$(MAKE) -C module uninstall
+	rm -f /rootfs/etc/init.d/S60fanmgr
 
 .PHONY: all daemon cli clean module install uninstall
