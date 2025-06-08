@@ -275,22 +275,6 @@ static void process_fifo_command(const char *cmd)
         } else {
             syslog(LOG_WARNING, "Invalid mode value: %s (must be 'auto' or 'manual')", mode);
         }
-    } else if (strcmp(trimmed, "freq_up") == 0) {
-        int freq = get_freq();
-        if (freq > 0 && freq < 20) {
-            if (set_freq(freq + 1) == 0) {
-                syslog(LOG_INFO, "Frequency increased to %d", freq + 1);
-            }
-        }
-    } else if (strcmp(trimmed, "freq_down") == 0) {
-        int freq = get_freq();
-        if (freq > 1) {
-            if (set_freq(freq - 1) == 0) {
-                syslog(LOG_INFO, "Frequency decreased to %d", freq - 1);
-            }
-        }
-    } else if (strcmp(trimmed, "toggle_mode") == 0) {
-        toggle_mode();
     } else {
         syslog(LOG_WARNING, "Unknown command: %s", trimmed);
     }
