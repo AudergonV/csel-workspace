@@ -7,19 +7,19 @@ Since there is no fan on the NanoPi NeoPlus2, the led will simulate the fan spee
 
 ## Sysfs interface specification
 
-### /sys/class/csel/mode
+### /sys/devices/platform/csel/mode
 
 Allows to set the mode to auto or manual.
 - **Write**: `auto` or `manual`
 - **Read**: Current mode (either `auto` or `manual`)
 
-### /sys/class/csel/temp
+### /sys/devices/platform/csel/temp
 
 Allows to read the CPU temperature.
 - **Write**: Not allowed
 - **Read**: Current CPU temperature in degrees Celsius
 
-### /sys/class/csel/blink_freq
+### /sys/devices/platform/csel/blink_freq
 
 Allows to set or read the LED blink frequency.
 
