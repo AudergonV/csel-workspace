@@ -74,7 +74,6 @@ int fan_control_init(void) {
     status = status_led_init();
     if (status < 0) {
         pr_err("failed to initialize status LED: %d\n", status);
-        cpu_temperature_deinit();
         return status;
     }
     fan_thread = kthread_run(fan_control_thread, NULL, "fan_control_thread");
